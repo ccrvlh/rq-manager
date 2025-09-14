@@ -7,7 +7,7 @@ from litestar.response import Response
 from prometheus_client import REGISTRY
 from prometheus_client import generate_latest
 
-from app.routes.depends import get_metrics_service_dependency
+from app.routes.depends import get_snapshot_svc_dependency
 from app.services.snapshots import SnapshotService
 from app.extensions.exporter import PrometheusExporter
 
@@ -26,7 +26,7 @@ class MetricsController(Controller):
 
     path = "/metrics"
     tags = ["metrics"]
-    dependencies = {"svc": Provide(get_metrics_service_dependency)}
+    dependencies = {"svc": Provide(get_snapshot_svc_dependency)}
 
     @get()
     async def prometheus_metrics(self, svc: SnapshotService) -> Response:
