@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rq-manager-service
+spec:
+  selector:
+    app: rq-manager
+  ports:
+  - port: 80
+    targetPort: 7777
+  type: ClusterIP

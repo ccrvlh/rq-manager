@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rq-manager-config
+data:
+  RQM_APP_ENV: "production"
+  RQM_APP_HOST: "0.0.0.0"
+  RQM_APP_PORT: "8000"
+  RQM_APP_NGINX_PORT: "7777"
+  RQM_APP_LOG_LEVEL: "INFO"
+  RQM_APP_DEBUG: "false"
+  RQM_APP_REDIS_HOST: "redis-service"
+  RQM_APP_REDIS_PORT: "6379"
+  RQM_APP_REDIS_DB: "0"
+  RQM_APP_REDIS_SSL: "false"
+  RQM_APP_REDIS_TIMEOUT: "5"
+  RQM_APP_ANALYTICS_ENABLED: "true"
+  RQM_APP_ANALYTICS_COLLECTION_INTERVAL: "5"
+  RQM_APP_ANALYTICS_RETENTION_DAYS: "30"

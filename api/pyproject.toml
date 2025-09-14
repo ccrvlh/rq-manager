@@ -1,0 +1,102 @@
+[tool.poetry]
+name = "app"
+version = "0.1.0"
+description = ""
+
+[tool.poetry.scripts]
+rqm = "app.cli:cli"
+
+
+[tool.pyright]
+
+
+[tool.ruff]
+exclude = [".archive", ".roo", ".github", "docs", "infra", "static"]
+line-length = 120
+ignore = [
+    "D100", # Missing docstring in public module
+    "D104", # Missing docstring in public package
+    "D107", # Missing docstring in __init__
+    "E712", # Avoid equality comparison to True
+]
+
+
+[tool.ruff.lint.isort]
+force-single-line = true
+from-first = false
+force-sort-within-sections = false
+forced-separate = ["tests", "app"]
+known-first-party = ["app"]
+known-local-folder = ["app"]
+known-third-party = ["litestar", "sqlalchemy", "faker"]
+length-sort = true
+length-sort-straight = true
+lines-after-imports = 2
+lines-between-types = 1
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+    "testing",
+]
+
+
+[tool.black]
+line-length = 130
+skip-string-normalization = true
+target-version = ["py311"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.venv
+  | migrations
+)/
+'''
+
+
+[tool.mypy]
+strict = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = false
+warn_unused_configs = true
+warn_unreachable = true
+show_error_codes = true
+disallow_any_generics = false
+disallow_untyped_defs = false
+no_implicit_reexport = false
+disallow_untyped_decorators = false
+implicit_reexport = false
+warn_return_any = false
+exclude = [".git", ".venv", "migrations", "local"]
+
+
+[tool.poetry.dependencies]
+python = "~3.12"
+litestar = { extras = ["standard"], version = "^2.17.0" }
+rq = "^2.5.0"
+msgspec = "^0.19.0"
+click = "^8.2.1"
+redis = "^6.4.0"
+uvicorn = "^0.35.0"
+prometheus-client = "^0.22.1"
+sqlalchemy = "^2.0.0"
+python-dotenv = "^1.1.1"
+rq-scheduler = "^0.14.0"
+
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.17.1"
+ruff = "^0.12.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

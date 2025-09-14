@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rq-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rq-manager
+  template:
+    metadata:
+      labels:
+        app: rq-manager
+    spec:
+      containers:
+      - name: rq-manager
+        image: rq-manager:latest
+        ports:
+        - containerPort: 7777
+        envFrom:
+        - configMapRef:
+            name: rq-manager-config
+        - secretRef:
+            name: rq-manager-secrets
+        volumeMounts:
+        - name: analytics-data
+          mountPath: /app/data
+        env:
+        - name: RQM_APP_ANALYTICS_DB_PATH
+          value: "/app/data/analytics.db"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 7777
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 7777
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: analytics-data
+        persistentVolumeClaim:
+          claimName: rq-manager-data
