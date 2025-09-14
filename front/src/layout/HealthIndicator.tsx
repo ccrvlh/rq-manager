@@ -1,4 +1,4 @@
-import { useRedisHealth } from "@/services/health/healthService";
+import { useRedisHealth } from "@/services/healthService";
 import {
   ActionIcon,
   Badge,

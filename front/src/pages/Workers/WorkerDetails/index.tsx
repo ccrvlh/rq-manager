@@ -1,5 +1,5 @@
 import { routes } from "@/routes";
-import { useWorker, useWorkerJobs } from "@/services/workers/workersService";
+import { useWorker, useWorkerJobs } from "@/services/workersService";
 import {
   ActionIcon,
   Alert,

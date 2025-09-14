@@ -1,4 +1,4 @@
-import { Worker } from "@/services/workers/workersService";
+import { Worker } from "@/services/workersService";
 import {
   ActionIcon,
   Badge,

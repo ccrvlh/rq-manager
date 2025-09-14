@@ -3,7 +3,7 @@ import {
   useQueue,
   useQueueHealth,
   useQueueMetrics,
-} from "@/services/queues/queuesService";
+} from "@/services/queuesService";
 import {
   ActionIcon,
   Alert,

@@ -1,4 +1,4 @@
-import { ScheduledJob } from "@/services/scheduled/scheduledJobsService";
+import { ScheduledJob } from "@/services/scheduledJobsService";
 import { parseCronExpression } from "@/utils/cronParser";
 import {
   Badge,

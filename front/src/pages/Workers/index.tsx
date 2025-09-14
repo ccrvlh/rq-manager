@@ -1,9 +1,9 @@
-import { useSchedulers } from "@/services/schedulers/schedulersService";
+import { useSchedulers } from "@/services/schedulersService";
 import {
   useWorkerCounts,
   useWorkers,
   WorkerListFilters,
-} from "@/services/workers/workersService";
+} from "@/services/workersService";
 import {
   ActionIcon,
   Container,

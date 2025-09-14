@@ -1,4 +1,4 @@
-import { useDashboardWorkers } from "@/services/dashboard/dashboardService";
+import { useDashboardWorkers } from "@/services/dashboardService";
 import {
   ActionIcon,
   Badge,

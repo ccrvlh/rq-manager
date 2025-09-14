@@ -1,4 +1,4 @@
-import { Scheduler } from "@/services/schedulers/schedulersService";
+import { Scheduler } from "@/services/schedulersService";
 import { Badge, Card, Group, Stack, Text } from "@mantine/core";
 import { IconClock } from "@tabler/icons-react";
 

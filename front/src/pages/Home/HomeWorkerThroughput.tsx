@@ -1,4 +1,4 @@
-import { useWorkerThroughput } from "@/services/analytics/analyticsService";
+import { useWorkerThroughput } from "@/services/analyticsService";
 import {
   ActionIcon,
   Button,

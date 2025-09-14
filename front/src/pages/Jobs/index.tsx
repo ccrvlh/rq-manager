@@ -1,10 +1,6 @@
 import { useRefreshInterval } from "@/hooks/useRefreshInterval";
-import {
-  useCancelJob,
-  useJobs,
-  useRetryJob,
-} from "@/services/jobs/jobsService";
-import { useQueues } from "@/services/queues/queuesService";
+import { useCancelJob, useJobs, useRetryJob } from "@/services/jobsService";
+import { useQueues } from "@/services/queuesService";
 import {
   ActionIcon,
   Button,

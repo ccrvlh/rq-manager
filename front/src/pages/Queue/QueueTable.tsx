@@ -1,6 +1,6 @@
 import { Queue, QueuePriority, QueueStatus } from "@/pages/Queue/types";
 import { getQueueDetailsRoute } from "@/routes";
-import { useQueues } from "@/services/queues/queuesService";
+import { useQueues } from "@/services/queuesService";
 import {
   ActionIcon,
   Badge,

@@ -1,4 +1,4 @@
-import { useRecentJobs } from "@/services/dashboard/dashboardService";
+import { useRecentJobs } from "@/services/dashboardService";
 import {
   ActionIcon,
   Badge,

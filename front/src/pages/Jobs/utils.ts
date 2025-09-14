@@ -4,6 +4,7 @@ export const getStatusColor = (
   status: JobStatus | null | undefined
 ): string => {
   const colors = {
+    [JobStatus.CREATED]: "blue",
     [JobStatus.QUEUED]: "blue",
     [JobStatus.STARTED]: "green",
     [JobStatus.FINISHED]: "teal",
@@ -20,6 +21,7 @@ export const getStatusLabel = (
   status: JobStatus | null | undefined
 ): string => {
   const labels = {
+    [JobStatus.CREATED]: "Created",
     [JobStatus.QUEUED]: "Queued",
     [JobStatus.STARTED]: "Active",
     [JobStatus.FINISHED]: "Completed",

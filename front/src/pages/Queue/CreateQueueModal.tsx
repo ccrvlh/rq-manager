@@ -1,5 +1,5 @@
 import { QueueCreate, QueuePriority } from "@/pages/Queue/types";
-import { useCreateQueue } from "@/services/queues/queuesService";
+import { useCreateQueue } from "@/services/queuesService";
 import {
   Button,
   Group,

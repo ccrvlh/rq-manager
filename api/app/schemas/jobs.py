@@ -21,14 +21,6 @@ class JobStatus(str, Enum):
     CANCELED = "canceled"
 
 
-class JobOrigin(str, Enum):
-    """Origin sources for jobs."""
-
-    QUEUE = "queue"
-    SCHEDULER = "scheduler"
-    REQUEUE = "requeue"
-
-
 class JobDependency(Struct):
     """Schema for job dependencies."""
 
@@ -67,7 +59,7 @@ class BaseJob(Struct):
     kwargs: Optional[dict[str, Any]] = None
     meta: Optional[JobMetaData] = None
     status: Optional[JobStatus] = None
-    origin: Optional[JobOrigin] = None
+    origin: Optional[str] = None
     enqueued_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None

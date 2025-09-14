@@ -1,4 +1,4 @@
-import { useDashboardQueues } from "@/services/dashboard/dashboardService";
+import { useDashboardQueues } from "@/services/dashboardService";
 import {
   ActionIcon,
   Button,

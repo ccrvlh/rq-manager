@@ -1,9 +1,9 @@
+import { useSettings } from "@/contexts/SettingsContext";
 import { Job, JobStatus } from "@/pages/Jobs/types";
 import { QueueDetails } from "@/pages/Queue/types";
-import { Worker } from "@/services/workers/workersService";
+import { Worker } from "@/services/workersService";
 import { api } from "@/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { useSettings } from "@/contexts/SettingsContext";
 
 export interface DashboardStats {
   totalJobs: number;
@@ -76,7 +76,9 @@ export const useDashboardStats = () => {
         processingCapacity: Math.round(processingCapacity * 10) / 10,
       };
     },
-    refetchInterval: settings.autoRefresh ? settings.dashboardRefreshInterval : false,
+    refetchInterval: settings.autoRefresh
+      ? settings.dashboardRefreshInterval
+      : false,
     staleTime: 5000,
   });
 };
@@ -96,7 +98,9 @@ export const useRecentJobs = () => {
       });
       return response.data.data || [];
     },
-    refetchInterval: settings.autoRefresh ? settings.dashboardRefreshInterval : false,
+    refetchInterval: settings.autoRefresh
+      ? settings.dashboardRefreshInterval
+      : false,
     staleTime: 5000,
   });
 };
@@ -117,7 +121,9 @@ export const useFailedJobs = () => {
       });
       return response.data.data || [];
     },
-    refetchInterval: settings.autoRefresh ? settings.dashboardRefreshInterval : false,
+    refetchInterval: settings.autoRefresh
+      ? settings.dashboardRefreshInterval
+      : false,
     staleTime: 5000,
   });
 };
@@ -135,7 +141,9 @@ export const useDashboardWorkers = () => {
       });
       return response.data || [];
     },
-    refetchInterval: settings.autoRefresh ? settings.dashboardRefreshInterval : false,
+    refetchInterval: settings.autoRefresh
+      ? settings.dashboardRefreshInterval
+      : false,
     staleTime: 5000,
   });
 };
@@ -148,7 +156,9 @@ export const useDashboardQueues = () => {
       const response = await api.get("/queues");
       return response.data.data || [];
     },
-    refetchInterval: settings.autoRefresh ? settings.dashboardRefreshInterval : false,
+    refetchInterval: settings.autoRefresh
+      ? settings.dashboardRefreshInterval
+      : false,
     staleTime: 5000,
   });
 };

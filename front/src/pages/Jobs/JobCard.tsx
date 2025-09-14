@@ -20,6 +20,7 @@ interface JobCardProps {
 }
 
 const statusIcons: Record<JobStatus, React.ReactNode> = {
+  [JobStatus.CREATED]: <IconClock size={14} />,
   [JobStatus.QUEUED]: <IconClock size={14} />,
   [JobStatus.STARTED]: <IconPlayerPlay size={14} />,
   [JobStatus.FINISHED]: <IconCheck size={14} />,

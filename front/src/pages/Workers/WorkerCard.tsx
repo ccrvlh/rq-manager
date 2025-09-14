@@ -1,8 +1,8 @@
 import { MetricCardChart } from "@/components/MetricCardChart";
 import { TimePeriod } from "@/pages/Home/TimePeriodSelector";
 import { getWorkerDetailsRoute } from "@/routes";
-import { useWorkerThroughput } from "@/services/analytics/analyticsService";
-import { Worker } from "@/services/workers/workersService";
+import { useWorkerThroughput } from "@/services/analyticsService";
+import { Worker } from "@/services/workersService";
 import {
   ActionIcon,
   Badge,

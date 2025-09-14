@@ -1,4 +1,4 @@
-import { useFailedJobs } from "@/services/dashboard/dashboardService";
+import { useFailedJobs } from "@/services/dashboardService";
 import {
   ActionIcon,
   Badge,

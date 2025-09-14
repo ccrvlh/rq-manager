@@ -1,5 +1,5 @@
-import { useCreateJob } from "@/services/jobs/jobsService";
-import { useQueues } from "@/services/queues/queuesService";
+import { useCreateJob } from "@/services/jobsService";
+import { useQueues } from "@/services/queuesService";
 import {
   Button,
   Group,

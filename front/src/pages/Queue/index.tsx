@@ -5,7 +5,7 @@ import {
   QueueStatus,
   Queue as QueueType,
 } from "@/pages/Queue/types";
-import { useQueues } from "@/services/queues/queuesService";
+import { useQueues } from "@/services/queuesService";
 import {
   ActionIcon,
   Button,

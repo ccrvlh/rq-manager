@@ -1,11 +1,11 @@
-import { useQueues } from "@/services/queues/queuesService";
+import { useQueues } from "@/services/queuesService";
 import {
   ScheduledJob,
   ScheduledJobsQueryParams,
   useDeleteScheduledJob,
   useScheduledJobCounts,
   useScheduledJobs,
-} from "@/services/scheduled/scheduledJobsService";
+} from "@/services/scheduledJobsService";
 import { parseCronExpression } from "@/utils/cronParser";
 import {
   ActionIcon,
@@ -60,13 +60,14 @@ export function Scheduled() {
   // Client-side filtering
   const jobs = useMemo(() => {
     if (!queryParams.search) return allJobs;
-    
+
     const searchTerm = queryParams.search.toLowerCase();
-    return allJobs.filter(job => 
-      job.func_name.toLowerCase().includes(searchTerm) ||
-      job.id.toLowerCase().includes(searchTerm) ||
-      job.queue.toLowerCase().includes(searchTerm) ||
-      (job.description && job.description.toLowerCase().includes(searchTerm))
+    return allJobs.filter(
+      (job) =>
+        job.func_name.toLowerCase().includes(searchTerm) ||
+        job.id.toLowerCase().includes(searchTerm) ||
+        job.queue.toLowerCase().includes(searchTerm) ||
+        (job.description && job.description.toLowerCase().includes(searchTerm))
     );
   }, [allJobs, queryParams.search]);
 

@@ -1,4 +1,4 @@
-import { useQueueDepth } from "@/services/analytics/analyticsService";
+import { useQueueDepth } from "@/services/analyticsService";
 import {
   ActionIcon,
   Button,
@@ -60,7 +60,9 @@ export function HomeQueueDepth({ timePeriod }: { timePeriod: TimePeriod }) {
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
-  const queueNames = [...new Set(rawData.map((d) => d.queue_name))];
+  const queueNames: string[] = [
+    ...new Set<string>(rawData.map((d) => d.queue_name)),
+  ];
 
   useEffect(() => {
     if (evolutionData.length > 0 && hiddenSeries.size === 0) {

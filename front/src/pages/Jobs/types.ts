@@ -1,5 +1,5 @@
-// Align with backend JobStatus enum from api/app/schemas/jobs.py
 export enum JobStatus {
+  CREATED = "created",
   QUEUED = "queued",
   STARTED = "started",
   FINISHED = "finished",
@@ -10,7 +10,6 @@ export enum JobStatus {
   CANCELED = "canceled",
 }
 
-// Align with backend JobDetails schema from api/app/schemas/jobs.py
 export interface Job {
   id: string;
   created_at: string; // ISO datetime string
@@ -18,7 +17,7 @@ export interface Job {
   args?: unknown[] | null;
   kwargs?: Record<string, unknown> | null;
   status?: JobStatus | null;
-  origin?: JobOrigin | null;
+  origin?: string | null;
   enqueued_at?: string | null; // ISO datetime string
   started_at?: string | null; // ISO datetime string
   ended_at?: string | null; // ISO datetime string
@@ -44,14 +43,6 @@ export interface Job {
   duration_seconds?: number | null;
 }
 
-// Align with backend JobOrigin enum from api/app/schemas/jobs.py
-export enum JobOrigin {
-  QUEUE = "queue",
-  SCHEDULER = "scheduler",
-  REQUEUE = "requeue",
-}
-
-// Job metadata from backend JobMetaData schema
 export interface JobMeta {
   timeout?: number | null;
   result_ttl?: number | null;
@@ -70,7 +61,6 @@ export interface JobMeta {
   meta?: Record<string, unknown> | null;
 }
 
-// Query parameters aligning with backend JobListFilters schema
 export interface JobsQueryParams {
   limit: number;
   offset: number;
@@ -85,7 +75,6 @@ export interface JobsQueryParams {
   sort_order?: "desc" | "asc";
 }
 
-// Response structure aligning with API response pattern (list of JobDetails)
 export interface JobsResponse {
   data: Job[];
   total: number;
@@ -94,7 +83,6 @@ export interface JobsResponse {
   has_more: boolean;
 }
 
-// Pagination state
 export interface PaginationState {
   page: number;
   pageSize: number;

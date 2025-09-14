@@ -1,4 +1,4 @@
-import { useDashboardStats } from "@/services/dashboard/dashboardService";
+import { useDashboardStats } from "@/services/dashboardService";
 import { Avatar, Box, Card, Grid, Group, Text } from "@mantine/core";
 import {
   IconAlertTriangle,

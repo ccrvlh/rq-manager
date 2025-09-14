@@ -1,7 +1,7 @@
 import { MetricCardChart } from "@/components/MetricCardChart";
 import { QueueDetails, QueuePriority, QueueStatus } from "@/pages/Queue/types";
 import { getQueueDetailsRoute } from "@/routes";
-import { useQueueDepth } from "@/services/analytics/analyticsService";
+import { useQueueDepth } from "@/services/analyticsService";
 import {
   ActionIcon,
   Badge,
