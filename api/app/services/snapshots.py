@@ -24,7 +24,7 @@ class SnapshotService:
     def __init__(self, redis: Redis) -> None:
         self.repo = None
         self.redis = redis
-        self.INTERVAL = settings.APP_ANALYTICS_COLLECTION_INTERVAL
+        self.INTERVAL = settings.APP_ANALYTICS_COLLECTION_INTERVAL_SECONDS
         self.db_path = settings.APP_ANALYTICS_DB_PATH
         self.repo = ManagerRepository(self.db_path)
         self.collection_task: Optional[asyncio.Task] = None
@@ -138,14 +138,14 @@ class SnapshotService:
 
         Args:
             db_path (Optional[str], optional): Path to SQLite DB. Defaults to settings.APP_ANALYTICS_DB_PATH.
-            interval (Optional[int], optional): Collection interval in seconds. Defaults to settings.APP_ANALYTICS_COLLECTION_INTERVAL.
+            interval (Optional[int], optional): Collection interval in seconds. Defaults to settings.APP_ANALYTICS_COLLECTION_INTERVAL_SECONDS.
         """
         try:
 
             if db_path is None:
                 db_path = settings.APP_ANALYTICS_DB_PATH
             if interval is None:
-                interval = settings.APP_ANALYTICS_COLLECTION_INTERVAL
+                interval = settings.APP_ANALYTICS_COLLECTION_INTERVAL_SECONDS
 
             self._running = True
             self.collection_task = asyncio.create_task(self._start_collection(interval))

@@ -1,7 +1,26 @@
+[project]
+name = "rq-manager"
+dynamic = ["version"]
+description = "Web UI and API for monitoring and managing RQ workers and jobs"
+readme = "../README.md"
+authors = [{ name = "ccrvlh" }]
+keywords = ["rq", "queue", "dashboard", "redis", "monitoring"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+]
+
 [tool.poetry]
 name = "app"
 version = "0.1.0"
-description = ""
+description = "Web UI and API for monitoring and managing RQ workers and jobs"
+authors = ["ccrvlh"]
+license = "MIT"
+
+[[tool.poetry.packages]]
+include = "app"
+
 
 [tool.poetry.scripts]
 rqm = "app.cli:cli"
