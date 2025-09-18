@@ -10,15 +10,19 @@ from rq.job import Job
 from rq.queue import Queue
 from rq.registry import FailedJobRegistry
 from rq.registry import StartedJobRegistry
+from rq.registry import CanceledJobRegistry
 from rq.registry import DeferredJobRegistry
 from rq.registry import FinishedJobRegistry
+from rq.registry import ScheduledJobRegistry
 
+from app.config import settings
 from app.schemas.jobs import BaseJob
 from app.schemas.jobs import JobCreate
 from app.schemas.jobs import JobStatus
 from app.schemas.jobs import JobUpdate
 from app.schemas.jobs import JobDetails
 from app.schemas.jobs import JobListFilters
+from app.extensions.scheduler import RQSchedulerRegistry
 from app.utils.datetime_utils import get_duration_seconds
 from app.utils.datetime_utils import ensure_timezone_aware
 from app.utils.datetime_utils import get_timezone_aware_min
@@ -85,7 +89,14 @@ class JobService:
                     (FinishedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.FINISHED),
                     (FailedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.FAILED),
                     (DeferredJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.DEFERRED),
+                    (ScheduledJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.SCHEDULED),
+                    (CanceledJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.CANCELED),
                 ]
+
+                if settings.APP_ENABLE_RQ_SCHEDULER:
+                    job_sources.append(
+                        (RQSchedulerRegistry(queue.name, connection=self.redis).get_jobs_ids(), JobStatus.SCHEDULED)
+                    )
 
                 for job_ids, job_status in job_sources:
                     # Pre-filter by status to avoid unnecessary job fetching

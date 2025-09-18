@@ -40,6 +40,7 @@ class AppConfig(object):
     APP_MASTER_TOKEN: str = ""
     APP_ENCRYPTION_KEY: str = ""
     APP_OPEN_TELEMETRY_KEY: str = ""
+    APP_ENABLE_RQ_SCHEDULER: bool = True
 
     # Redis Configuration
     APP_REDIS_HOST: str = "localhost"
