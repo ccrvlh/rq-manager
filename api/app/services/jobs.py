@@ -1,6 +1,7 @@
 """Job service that interacts with RQ to get job information."""
 
 import logging
+import datetime as dt
 
 from typing import Optional
 
@@ -70,107 +71,82 @@ class JobService:
         if filters is None:
             filters = JobListFilters()
 
-        all_jobs: list[JobDetails] = []
-        total_count = 0
-        offset = filters.offset or 0
-        limit = filters.limit or 50
-
         try:
             queues = Queue.all(connection=self.redis)
+        except Exception as e:
+            logger.error(f"Error listing queues: {e}")
+            return [], 0
 
-            # Collect jobs from all queues and registries
-            for queue in queues:
-                if filters.queue and queue.name != filters.queue:
+        collected: list["JobDetails"] = []
+        total_count = 0
+
+        for queue in queues:
+            if filters.queue and queue.name != filters.queue:
+                continue
+
+            job_sources = [
+                (queue.get_job_ids(), JobStatus.QUEUED),
+                (StartedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.STARTED),
+                (FinishedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.FINISHED),
+                (FailedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.FAILED),
+                (DeferredJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.DEFERRED),
+                (ScheduledJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.SCHEDULED),
+                (CanceledJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.CANCELED),
+            ]
+
+            if settings.APP_ENABLE_RQ_SCHEDULER:
+                job_sources.append((RQSchedulerRegistry(queue.name, connection=self.redis).get_job_ids(), JobStatus.SCHEDULED))
+
+            for job_ids, job_status in job_sources:
+                if filters.status and job_status != filters.status:
                     continue
 
-                job_sources = [
-                    (queue.get_job_ids(), JobStatus.QUEUED),
-                    (StartedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.STARTED),
-                    (FinishedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.FINISHED),
-                    (FailedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.FAILED),
-                    (DeferredJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.DEFERRED),
-                    (ScheduledJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.SCHEDULED),
-                    (CanceledJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.CANCELED),
-                ]
+                total_count += len(job_ids)
+                if not job_ids:
+                    continue
 
-                if settings.APP_ENABLE_RQ_SCHEDULER:
-                    job_sources.append(
-                        (RQSchedulerRegistry(queue.name, connection=self.redis).get_jobs_ids(), JobStatus.SCHEDULED)
-                    )
+                page_ids = job_ids[filters.offset : filters.offset + filters.limit]
 
-                for job_ids, job_status in job_sources:
-                    # Pre-filter by status to avoid unnecessary job fetching
-                    if filters.status and job_status != filters.status:
-                        total_count += len(job_ids)
+                try:
+                    jobs = Job.fetch_many(page_ids, connection=self.redis)
+                except Exception as e:
+                    logger.warning(f"Error fetching jobs {page_ids}: {e}")
+                    continue
+
+                for job in jobs:
+                    if job is None:
                         continue
 
-                    # Apply early limiting for finished/failed jobs to avoid fetching too many
-                    if job_status in [JobStatus.FINISHED, JobStatus.FAILED]:
-                        # For these registries, we get the most recent jobs first
-                        # Calculate how many we need based on remaining limit
-                        remaining_needed = limit - len(all_jobs) + offset
-                        if remaining_needed > 0:
-                            job_ids = job_ids[-min(remaining_needed, len(job_ids)) :]
-                        else:
-                            # We already have enough jobs, just count
-                            total_count += len(job_ids)
+                    if filters.function and job.func_name != filters.function:
+                        continue
+                    if filters.worker and job.worker_name != filters.worker:
+                        continue
+                    if filters.search:
+                        search_text = f"{job.func_name} {job.args} {job.kwargs}".lower()
+                        if filters.search.lower() not in search_text:
+                            continue
+                    if filters.tags and hasattr(job, "meta"):
+                        job_tags = job.meta.get("tags", [])
+                        if not any(tag in job_tags for tag in filters.tags):
                             continue
 
-                    total_count += len(job_ids)
+                    job_detail = self._map_rq_job_to_schema(job, queue.name)
+                    job_detail.status = job_status
 
-                    # Only fetch jobs if we haven't reached our pagination limit
-                    if len(all_jobs) >= (offset + limit):
+                    if filters.created_after and job_detail.created_at < filters.created_after:
+                        continue
+                    if filters.created_before and job_detail.created_at > filters.created_before:
                         continue
 
-                    for job_id in job_ids:
-                        try:
-                            if len(all_jobs) >= (offset + limit):
-                                break
-
-                            job = Job.fetch(job_id, connection=self.redis)
-
-                            if filters.function and job.func_name != filters.function:
-                                continue
-
-                            if filters.worker and job.worker_name != filters.worker:
-                                continue
-
-                            if filters.search:
-                                search_text = f"{job.func_name} {str(job.args)} {str(job.kwargs)}".lower()
-                                if filters.search.lower() not in search_text:
-                                    continue
-
-                            # Filter by tags (if we can extract them)
-                            if filters.tags and hasattr(job, 'meta') and job.meta:
-                                job_tags = job.meta.get('tags', [])
-                                if not any(tag in job_tags for tag in filters.tags):
-                                    continue
-
-                            job_detail = self._map_rq_job_to_schema(job, queue.name)
-                            job_detail.status = job_status  # Override with registry status
-
-                            if filters.created_after and job_detail.created_at < filters.created_after:
-                                continue
-                            if filters.created_before and job_detail.created_at > filters.created_before:
-                                continue
-
-                            all_jobs.append(job_detail)
-
-                        except Exception as e:
-                            logger.warning(f"Error processing job {job_id}: {e}")
-
-        except Exception as e:
-            logger.error(f"Error listing jobs: {e}")
+                    collected.append(job_detail)
 
         sort_by = filters.sort_by or "created_at"
         sort_order = filters.sort_order or "desc"
-
-        def get_sort_key(job):
-            value = getattr(job, sort_by, get_timezone_aware_min())
-            return ensure_timezone_aware(value)
-
-        all_jobs.sort(key=get_sort_key, reverse=(sort_order == "desc"))
-        return all_jobs, total_count
+        collected.sort(
+            key=lambda j: getattr(j, sort_by, dt.datetime.min),
+            reverse=(sort_order == "desc"),
+        )
+        return collected, total_count
 
     def get_jobs_for_worker(self, worker_name: str) -> list[JobDetails]:
         """Get all jobs associated with a specific worker.
