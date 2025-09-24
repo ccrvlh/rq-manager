@@ -85,32 +85,41 @@ class JobService:
                 continue
 
             job_sources = [
-                (queue.get_job_ids(), JobStatus.QUEUED),
-                (StartedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.STARTED),
-                (FinishedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.FINISHED),
-                (FailedJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.FAILED),
-                (DeferredJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.DEFERRED),
-                (ScheduledJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.SCHEDULED),
-                (CanceledJobRegistry(queue.name, connection=self.redis).get_job_ids(cleanup=False), JobStatus.CANCELED),
+                (queue, JobStatus.QUEUED, True),
+                (StartedJobRegistry(queue.name, connection=self.redis), JobStatus.STARTED, True),
+                (FinishedJobRegistry(queue.name, connection=self.redis), JobStatus.FINISHED, True),
+                (FailedJobRegistry(queue.name, connection=self.redis), JobStatus.FAILED, True),
+                (DeferredJobRegistry(queue.name, connection=self.redis), JobStatus.DEFERRED, True),
+                (ScheduledJobRegistry(queue.name, connection=self.redis), JobStatus.SCHEDULED, False),
+                (CanceledJobRegistry(queue.name, connection=self.redis), JobStatus.CANCELED, False),
             ]
 
             if settings.APP_ENABLE_RQ_SCHEDULER:
-                job_sources.append((RQSchedulerRegistry(queue.name, connection=self.redis).get_job_ids(), JobStatus.SCHEDULED))
+                job_sources.append((RQSchedulerRegistry(queue.name, connection=self.redis), JobStatus.SCHEDULED, False))
 
-            for job_ids, job_status in job_sources:
+            jobs_to_fetch_per_registry = filters.limit * 3
+            for registry, job_status, desc_order in job_sources:
+                if job_status == JobStatus.QUEUED:
+                    job_ids = registry.get_job_ids()  # type: ignore
+                else:
+                    job_ids = registry.get_job_ids(cleanup=False, desc=desc_order)  # type: ignore
+
                 if filters.status and job_status != filters.status:
                     continue
 
-                total_count += len(job_ids)
                 if not job_ids:
                     continue
 
-                page_ids = job_ids[filters.offset : filters.offset + filters.limit]
+                limited_job_ids = job_ids[:jobs_to_fetch_per_registry]
+                total_count += len(job_ids)
 
                 try:
-                    jobs = Job.fetch_many(page_ids, connection=self.redis)
+                    page_ids_str = [
+                        job_id.decode('utf-8') if isinstance(job_id, bytes) else str(job_id) for job_id in limited_job_ids
+                    ]
+                    jobs = Job.fetch_many(page_ids_str, connection=self.redis)
                 except Exception as e:
-                    logger.warning(f"Error fetching jobs {page_ids}: {e}")
+                    logger.warning(f"Error fetching jobs {limited_job_ids}: {e}")
                     continue
 
                 for job in jobs:
@@ -146,7 +155,9 @@ class JobService:
             key=lambda j: getattr(j, sort_by, dt.datetime.min),
             reverse=(sort_order == "desc"),
         )
-        return collected, total_count
+
+        paginated_jobs = collected[filters.offset : filters.offset + filters.limit]
+        return paginated_jobs, total_count
 
     def get_jobs_for_worker(self, worker_name: str) -> list[JobDetails]:
         """Get all jobs associated with a specific worker.
@@ -276,7 +287,7 @@ class JobService:
                 func=job_data.func_name,
                 args=job_data.args,
                 kwargs=job_data.kwargs,
-                meta=job_data.meta or {},
+                meta=dict(job_data.meta) if job_data.meta else None,
                 connection=self.redis,
             )
             q = Queue(name=job_data.queue or "default", connection=self.redis)

@@ -6,7 +6,7 @@ from rq_scheduler.utils import rationalize_until
 class RQSchedulerRegistry(Scheduler):
     """Custom Scheduler class for RQ Manager."""
 
-    def get_job_ids(self, until=None, with_times=False, offset=None, length=None) -> list[str]:
+    def get_job_ids(self, until=None, with_times=False, offset=None, length=None, desc=False, cleanup=False) -> list[str]:
         """
         Returns a list of job ids that will be queued until the given
         time. If no 'until' argument is given all jobs are returned.
