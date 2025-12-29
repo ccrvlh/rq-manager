@@ -145,8 +145,7 @@ class JobService:
                         if not any(tag in job_tags for tag in filters.tags):
                             continue
 
-                    job_detail = self._map_rq_job_to_schema(job, queue.name)
-                    job_detail.status = job_status
+                    job_detail = self._map_rq_job_to_schema(job, queue.name, include_result=False, status=job_status)
 
                     if filters.created_after and job_detail.created_at < filters.created_after:
                         continue
@@ -375,8 +374,15 @@ class JobService:
 
         return "default"
 
-    def _map_rq_job_to_schema(self, rq_job: Job, queue_name: str) -> JobDetails:
-        """Map RQ job object to JobDetails schema."""
+    def _map_rq_job_to_schema(self, rq_job: Job, queue_name: str, include_result: bool = True, status: JobStatus | None = None) -> JobDetails:
+        """Map RQ job object to JobDetails schema.
+        
+        Args:
+            rq_job: The RQ job object
+            queue_name: The queue name
+            include_result: Whether to include the job result (expensive, defaults True)
+            status: Pre-determined status to avoid Redis call (optional)
+        """
         try:
             # Map RQ status to our schema status
             status_mapping = {
@@ -390,8 +396,10 @@ class JobService:
                 'canceled': JobStatus.CANCELED,
             }
 
-            # Determine job status
-            status = status_mapping.get(rq_job.get_status().lower(), JobStatus.QUEUED)
+            if status is not None:
+                job_status = status
+            else:
+                job_status = status_mapping.get(rq_job.get_status().lower(), JobStatus.QUEUED)
 
             # Get job metadata
             meta_data = {}
@@ -405,22 +413,32 @@ class JobService:
             try:
                 func_name = rq_job.func_name or "unknown"
             except Exception:
-                func_name = "unknown (deserialization error)"
+                func_name = "unknown"
+
+            try:
+                args = rq_job.args or []
+            except Exception:
+                args = []
+
+            try:
+                kwargs = rq_job.kwargs or {}
+            except Exception:
+                kwargs = {}
 
             return JobDetails(
                 id=rq_job.id,
                 created_at=ensure_timezone_aware(rq_job.created_at) or get_timezone_aware_now(),
                 func_name=func_name,
-                args=list(rq_job.args) if rq_job.args else [],
-                kwargs=dict(rq_job.kwargs) if rq_job.kwargs else {},
-                status=status,
+                args=args,
+                kwargs=kwargs,
+                status=job_status,
                 queue=queue_name,
                 worker_name=rq_job.worker_name,
                 started_at=ensure_timezone_aware(rq_job.started_at),
                 ended_at=ensure_timezone_aware(rq_job.ended_at),
                 duration_seconds=duration_seconds,
                 last_heartbeat=ensure_timezone_aware(getattr(rq_job, 'last_heartbeat', None)),
-                result=rq_job.result,
+                result=rq_job.result if include_result else None,
                 exc_info=rq_job.exc_info,
                 traceback=getattr(rq_job, 'exc_info', None),
                 meta_full=meta_data,
@@ -437,7 +455,7 @@ class JobService:
             )
 
         except Exception as e:
-            logger.error(f"Error mapping job {rq_job.id}: {e}")
+            logger.error(f"Error mapping job {rq_job.id}: {e}", exc_info=True)
             # Safely get job ID without triggering deserialization
             job_id = getattr(rq_job, 'id', 'unknown')
             return JobDetails(
