@@ -52,6 +52,8 @@ class JobsController(Controller):
         search: Optional[str] = Parameter(default=None, query="search"),
         limit: int = Parameter(default=50, query="limit"),
         offset: int = Parameter(default=0, query="offset"),
+        sort_by: Optional[str] = Parameter(default="created_at", query="sort_by"),
+        sort_order: Optional[str] = Parameter(default="desc", query="sort_order"),
     ) -> dict:
         """List jobs with optional filtering.
 
@@ -64,6 +66,8 @@ class JobsController(Controller):
             search (Optional[str]): Substring search in job details.
             limit (int): Pagination limit (default 50).
             offset (int): Pagination offset (default 0).
+            sort_by (Optional[str]): Sort field (default "created_at").
+            sort_order (Optional[str]): Sort order "asc" or "desc" (default "desc").
 
         Returns:
             dict: Dictionary with paginated list of jobs and metadata.
@@ -85,6 +89,8 @@ class JobsController(Controller):
                 search=search,
                 limit=limit,
                 offset=offset,
+                sort_by=sort_by,
+                sort_order=sort_order,
             )
             jobs, total_count = svc.list_jobs(filters)
 

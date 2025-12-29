@@ -1,8 +1,9 @@
 """Scheduled job service that interacts with RQ Scheduler."""
 
 import logging
-
 import redis
+
+from datetime import datetime
 
 from rq.job import Job
 from rq_scheduler import Scheduler  # type: ignore[import]
@@ -42,11 +43,32 @@ class ScheduledJobService:
         """
         try:
             scheduler = self._get_scheduler()
-            scheduled_jobs = list(scheduler.get_jobs())
+            job_ids_with_times = self.redis.zrangebyscore(
+                scheduler.scheduled_jobs_key,
+                0,
+                '+inf',
+                withscores=True
+            )
+            
+            if not job_ids_with_times:
+                return [], 0
+
+            job_ids = [job_id.decode('utf-8') if isinstance(job_id, bytes) else str(job_id)
+                      for job_id, _ in job_ids_with_times]
+            
+            scheduled_jobs = Job.fetch_many(job_ids, connection=self.redis)
+            scheduled_times = {
+                (job_id.decode('utf-8') if isinstance(job_id, bytes) else str(job_id)): datetime.utcfromtimestamp(score)
+                for job_id, score in job_ids_with_times
+            }
 
             job_details = []
             for job in scheduled_jobs:
-                detail = self._map_scheduled_job_to_schema(job)
+                if job is None:
+                    continue
+
+                scheduled_time = scheduled_times.get(job.id)
+                detail = self._map_scheduled_job_to_schema(job, scheduled_time)
                 job_details.append(detail)
 
             job_details.sort(key=lambda x: ensure_timezone_aware(x.scheduled_for) or get_timezone_aware_min())
@@ -67,20 +89,16 @@ class ScheduledJobService:
         """
         try:
             scheduler = self._get_scheduler()
-            scheduled_jobs: list[Job] = list(scheduler.get_jobs())
-
-            now = get_timezone_aware_now()
+            total_count = self.redis.zcard(scheduler.scheduled_jobs_key)
+            
+            now_timestamp = datetime.utcnow().timestamp()
+            overdue_count = self.redis.zcount(scheduler.scheduled_jobs_key, 0, now_timestamp)
+            
             counts = {
-                "total": len(scheduled_jobs),
-                "pending": 0,
-                "overdue": 0,
+                "total": total_count,
+                "pending": total_count - overdue_count,
+                "overdue": overdue_count,
             }
-
-            for job in scheduled_jobs:
-                if hasattr(job, 'scheduled_for') and job.scheduled_for <= now:
-                    counts["overdue"] += 1
-                else:
-                    counts["pending"] += 1
 
             return counts
 
@@ -105,18 +123,19 @@ class ScheduledJobService:
             logger.error(f"Error deleting scheduled job {job_id}: {e}")
             return False
 
-    def _map_scheduled_job_to_schema(self, scheduled_job) -> ScheduledJobDetails:
+    def _map_scheduled_job_to_schema(self, scheduled_job, scheduled_time: datetime | None = None) -> ScheduledJobDetails:
         """Map RQ scheduled job to ScheduledJobDetails schema.
 
         Args:
             scheduled_job: The RQ scheduled job object.
+            scheduled_time: The scheduled execution time (optional, from sorted set score).
 
         Returns:
             ScheduledJobDetails: Serialized job details.
         """
         try:
             meta = dict(scheduled_job.meta) if hasattr(scheduled_job, 'meta') and scheduled_job.meta else {}
-            cron = meta.get('cron') or getattr(scheduled_job, 'cron', None)
+            cron = meta.get('cron_string') or meta.get('cron') or getattr(scheduled_job, 'cron', None)
             repeat = meta.get('repeat') or getattr(scheduled_job, 'repeat', None)
             interval = meta.get('interval') or getattr(scheduled_job, 'interval', None)
 
@@ -126,7 +145,7 @@ class ScheduledJobService:
                 args=list(scheduled_job.args) if scheduled_job.args else [],
                 kwargs=dict(scheduled_job.kwargs) if scheduled_job.kwargs else {},
                 queue=getattr(scheduled_job, 'origin', 'default'),
-                scheduled_for=ensure_timezone_aware(getattr(scheduled_job, 'scheduled_for', None)),
+                scheduled_for=ensure_timezone_aware(scheduled_time) if scheduled_time else ensure_timezone_aware(getattr(scheduled_job, 'scheduled_for', None)),
                 created_at=ensure_timezone_aware(getattr(scheduled_job, 'created_at', None)) or get_timezone_aware_now(),
                 timeout=getattr(scheduled_job, 'timeout', None),
                 description=getattr(scheduled_job, 'description', None),
