@@ -145,7 +145,7 @@ class JobService:
                         if not any(tag in job_tags for tag in filters.tags):
                             continue
 
-                    job_detail = self._map_rq_job_to_schema(job, queue.name, include_result=False, status=job_status)
+                    job_detail = self._map_rq_job_to_schema(job, queue.name, include_result=False, include_exc_info=False, status=job_status)
 
                     if filters.created_after and job_detail.created_at < filters.created_after:
                         continue
@@ -174,58 +174,61 @@ class JobService:
             list[JobDetails]: All jobs started/finished/failed/deferred by this worker.
         """
         jobs = []
+        jobs_by_status: dict[JobStatus, list[str]] = {
+            JobStatus.STARTED: [],
+            JobStatus.FINISHED: [],
+            JobStatus.FAILED: [],
+            JobStatus.DEFERRED: [],
+        }
 
         try:
-            # Get all queues
             queues = Queue.all(connection=self.redis)
 
             for queue in queues:
-                # Check started jobs with cleanup=False
                 started_registry = StartedJobRegistry(queue.name, connection=self.redis)
-                job_ids = started_registry.get_job_ids(cleanup=False)
-                for job_id in job_ids:
-                    try:
-                        job = Job.fetch(job_id, connection=self.redis)
-                        if job.worker_name == worker_name:
-                            jobs.append(self._map_rq_job_to_schema(job, queue.name))
-                    except Exception as e:
-                        logger.warning(f"Error fetching started job {job_id}: {e}")
+                jobs_by_status[JobStatus.STARTED].extend(started_registry.get_job_ids(cleanup=False))
 
-                # Check finished jobs with cleanup=False
                 finished_registry = FinishedJobRegistry(queue.name, connection=self.redis)
-                job_ids = finished_registry.get_job_ids(cleanup=False)[-50:]  # Recent 50
-                for job_id in job_ids:
-                    try:
-                        job = Job.fetch(job_id, connection=self.redis)
-                        if job.worker_name == worker_name:
-                            jobs.append(self._map_rq_job_to_schema(job, queue.name))
-                    except Exception as e:
-                        logger.warning(f"Error fetching finished job {job_id}: {e}")
+                jobs_by_status[JobStatus.FINISHED].extend(finished_registry.get_job_ids(cleanup=False)[-50:])
 
-                # Check failed jobs with cleanup=False
                 failed_registry = FailedJobRegistry(queue.name, connection=self.redis)
-                job_ids = failed_registry.get_job_ids(cleanup=False)[-50:]  # Recent 50
-                for job_id in job_ids:
-                    try:
-                        job = Job.fetch(job_id, connection=self.redis)
-                        if job.worker_name == worker_name:
-                            jobs.append(self._map_rq_job_to_schema(job, queue.name))
-                    except Exception as e:
-                        logger.warning(f"Error fetching failed job {job_id}: {e}")
+                jobs_by_status[JobStatus.FAILED].extend(failed_registry.get_job_ids(cleanup=False)[-50:])
 
-                # Check deferred jobs with cleanup=False
                 deferred_registry = DeferredJobRegistry(queue.name, connection=self.redis)
-                job_ids = deferred_registry.get_job_ids(cleanup=False)
-                for job_id in job_ids:
-                    try:
-                        job = Job.fetch(job_id, connection=self.redis)
-                        if job.worker_name == worker_name:
-                            jobs.append(self._map_rq_job_to_schema(job, queue.name))
-                    except Exception as e:
-                        logger.warning(f"Error fetching deferred job {job_id}: {e}")
+                jobs_by_status[JobStatus.DEFERRED].extend(deferred_registry.get_job_ids(cleanup=False))
 
         except Exception as e:
             logger.error(f"Error getting jobs for worker {worker_name}: {e}")
+            return []
+
+        all_job_ids: list[str] = []
+        for job_ids in jobs_by_status.values():
+            all_job_ids.extend(job_ids)
+
+        if not all_job_ids:
+            return []
+
+        try:
+            page_ids_str = [
+                job_id.decode('utf-8') if isinstance(job_id, bytes) else str(job_id) for job_id in all_job_ids
+            ]
+            fetched_jobs = Job.fetch_many(page_ids_str, connection=self.redis)
+        except Exception as e:
+            logger.warning(f"Error fetching jobs for worker {worker_name}: {e}")
+            return []
+
+        job_id_to_status: dict[str, JobStatus] = {}
+        for status, job_ids in jobs_by_status.items():
+            for job_id in job_ids:
+                job_id_str = job_id.decode('utf-8') if isinstance(job_id, bytes) else str(job_id)
+                job_id_to_status[job_id_str] = status
+
+        for job in fetched_jobs:
+            if job is None:
+                continue
+            if job.worker_name == worker_name:
+                status = job_id_to_status.get(job.id, JobStatus.QUEUED)
+                jobs.append(self._map_rq_job_to_schema(job, queue.name if 'queue' in dir() else 'default', include_result=False, status=status))
 
         # Sort jobs by most recent first
         jobs.sort(
@@ -321,8 +324,6 @@ class JobService:
             if not job:
                 return None
 
-            # Note: Most job attributes can't be updated after creation
-            # This is mainly for updating metadata, status via requeuing, etc.
             logger.info(f"Job update requested for {job_id}: {update_data}")
             return job
 
@@ -374,13 +375,14 @@ class JobService:
 
         return "default"
 
-    def _map_rq_job_to_schema(self, rq_job: Job, queue_name: str, include_result: bool = True, status: JobStatus | None = None) -> JobDetails:
+    def _map_rq_job_to_schema(self, rq_job: Job, queue_name: str, include_result: bool = True, include_exc_info: bool = True, status: JobStatus | None = None) -> JobDetails:
         """Map RQ job object to JobDetails schema.
         
         Args:
             rq_job: The RQ job object
             queue_name: The queue name
             include_result: Whether to include the job result (expensive, defaults True)
+            include_exc_info: Whether to include exception info (expensive, defaults True)
             status: Pre-determined status to avoid Redis call (optional)
         """
         try:
@@ -439,8 +441,8 @@ class JobService:
                 duration_seconds=duration_seconds,
                 last_heartbeat=ensure_timezone_aware(getattr(rq_job, 'last_heartbeat', None)),
                 result=rq_job.result if include_result else None,
-                exc_info=rq_job.exc_info,
-                traceback=getattr(rq_job, 'exc_info', None),
+                exc_info=rq_job.exc_info if include_exc_info else None,
+                traceback=getattr(rq_job, 'exc_info', None) if include_exc_info else None,
                 meta_full=meta_data,
                 # Additional fields from RQ job
                 timeout=rq_job.timeout,
