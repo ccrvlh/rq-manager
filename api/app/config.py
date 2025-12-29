@@ -54,7 +54,7 @@ class AppConfig(object):
     # Analytics
     APP_ANALYTICS_DB_PATH: str = "data/analytics.db"
     APP_ANALYTICS_RETENTION_DAYS: int = 7
-    APP_ANALYTICS_COLLECTION_INTERVAL_SECONDS: int = 1
+    APP_ANALYTICS_COLLECTION_INTERVAL_SECONDS: int = 30
     APP_ANALYTICS_ENABLED: bool = True
 
     def __new__(cls):
