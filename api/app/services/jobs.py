@@ -126,12 +126,18 @@ class JobService:
                     if job is None:
                         continue
 
-                    if filters.function and job.func_name != filters.function:
+                    # Safely get func_name to avoid deserialization errors
+                    try:
+                        job_func_name = job.func_name
+                    except Exception:
+                        job_func_name = "unknown"
+
+                    if filters.function and job_func_name != filters.function:
                         continue
                     if filters.worker and job.worker_name != filters.worker:
                         continue
                     if filters.search:
-                        search_text = f"{job.func_name} {job.args} {job.kwargs}".lower()
+                        search_text = f"{job_func_name} {job.args} {job.kwargs}".lower()
                         if filters.search.lower() not in search_text:
                             continue
                     if filters.tags and hasattr(job, "meta"):
@@ -395,10 +401,16 @@ class JobService:
             # Calculate duration from start/end times
             duration_seconds = get_duration_seconds(rq_job.started_at, rq_job.ended_at)
 
+            # Safely get func_name without triggering deserialization errors
+            try:
+                func_name = rq_job.func_name or "unknown"
+            except Exception:
+                func_name = "unknown (deserialization error)"
+
             return JobDetails(
                 id=rq_job.id,
                 created_at=ensure_timezone_aware(rq_job.created_at) or get_timezone_aware_now(),
-                func_name=rq_job.func_name or "unknown",
+                func_name=func_name,
                 args=list(rq_job.args) if rq_job.args else [],
                 kwargs=dict(rq_job.kwargs) if rq_job.kwargs else {},
                 status=status,
@@ -426,10 +438,12 @@ class JobService:
 
         except Exception as e:
             logger.error(f"Error mapping job {rq_job.id}: {e}")
+            # Safely get job ID without triggering deserialization
+            job_id = getattr(rq_job, 'id', 'unknown')
             return JobDetails(
-                id=str(getattr(rq_job, 'id', 'unknown')),
+                id=str(job_id) if job_id else 'unknown',
                 created_at=get_timezone_aware_now(),
-                func_name=str(getattr(rq_job, 'func_name', 'unknown')),
+                func_name="unknown (deserialization error)",
                 status=JobStatus.FAILED,
                 queue=queue_name,
             )
